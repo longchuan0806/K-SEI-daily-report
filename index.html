@@ -1,227 +1,276 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>美容室 予約システム（松プラン完全版）</title>
-  
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  
+  <title>日報入力</title>
+  <!-- LINE LIFF SDK -->
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 10px; background-color: #f9f9f9; color: #333; }
-    .info-box { background: white; padding: 12px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); font-size: 14px; }
-    .select-section { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    .select-group { margin-bottom: 12px; }
-    .select-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #666; }
-    .form-select { display: block; width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; background-color: #fff; }
-    #calendar { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; display: none; }
-    .fc-day-sun .fc-col-header-cell-cushion { color: red; }
-    .fc-day-sat .fc-col-header-cell-cushion { color: blue; }
-    .fc-event { cursor: pointer; }
-    .selection-box { background: #e9f7ef; border: 1px solid #28a745; padding: 15px; border-radius: 8px; text-align: center; display: none; margin-top: 15px; }
-    .selection-text { font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #1e7e34; }
-    .btn { display: block; width: 100%; padding: 15px; background: #28a745; color: white; text-align: center; border-radius: 5px; font-weight: bold; border: none; cursor: pointer; font-size: 16px; }
+    body { background-color: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; }
+    .card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: none; }
+    .driver-info { text-align: center; font-weight: bold; color: #007bff; margin-bottom: 12px; font-size: 15px; background: #e9f2ff; padding: 10px; border-radius: 8px; }
+    .form-label { font-weight: bold; font-size: 14px; margin-bottom: 6px; }
+    .form-control, .form-select { padding: 12px; font-size: 15px; border-radius: 8px; }
+    #mainContent, #initRegisterArea { display: none; }
+    .req { color: #dc3545; font-size: 12px; margin-left: 4px; }
+    .member-box { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 8px 12px; max-height: 220px; overflow-y: auto; }
+    .member-item { padding: 8px 4px; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; }
+    .member-item:last-child { border-bottom: none; }
+    .member-checkbox { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; }
+    .member-label { cursor: pointer; font-size: 15px; user-select: none; }
   </style>
 </head>
 <body>
+<div class="container py-2" style="max-width: 520px;">
+  
+  <!-- 認証状態表示バー -->
+  <div class="driver-info" id="statusDisplay">LINE認証確認中...</div>
 
-  <div class="info-box">
-    <strong>ようこそ、<span id="userName" style="color:#008080;">読み込み中...</span> 様</strong>
-  </div>
-
-  <div class="select-section">
-    <div class="select-group">
-      <label>1. 店舗を選択</label>
-      <select id="shopSelect" class="form-select" onchange="filterStaff(); checkSelections();">
-        <option value="">-- 店舗を選んでください --</option>
+  <!-- 🔰 初回アカウント連携エリア -->
+  <div class="card p-4 bg-white mb-3" id="initRegisterArea">
+    <h5 class="text-primary font-weight-bold mb-2">🔰 初回アカウント連携</h5>
+    <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。<br>次回以降はお名前が自動認識されます。</p>
+    <div class="mb-3">
+      <label for="unlinkedNameSelect" class="form-label">お名前を選択<span class="req">※必須</span></label>
+      <select class="form-select" id="unlinkedNameSelect">
+        <option value="">読み込み中...</option>
       </select>
     </div>
-    <div class="select-group">
-      <label>2. スタッフを選択</label>
-      <select id="staffSelect" class="form-select" onchange="checkSelections()">
-        <option value="">-- スタッフを選んでください --</option>
-      </select>
-    </div>
-    <div class="select-group">
-      <label>3. メニューを選択</label>
-      <select id="menuSelect" class="form-select" onchange="checkSelections()">
-        <option value="">-- メニューを選んでください --</option>
-      </select>
-    </div>
+    <button type="button" class="btn btn-primary w-100 py-2 font-weight-bold" onclick="submitRegistration()">連携して利用を開始する</button>
   </div>
 
-  <div id="calendar"></div>
-
-  <div id="selectionBox" class="selection-box">
-    <div id="selectionText" class="selection-text"></div>
-    <button class="btn" onclick="submitReservation()">この内容で予約を確定する</button>
-  </div>
-
-  <script>
-    let userProfile = null;
-    let selectedSlot = null;
-    let calendar = null;
-    let masterMenus = [];
-    let masterStaffs = []; 
+  <!-- 📝 日報入力メインフォーム -->
+  <div class="card p-4 bg-white" id="mainContent">
+    <h4 class="text-center mb-3 text-primary font-weight-bold">日報報告</h4>
     
-    // 🚨ここに最新のGASウェブアプリURLが入っているか必ず確認してください！
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwmp4Z44I8FsGiWo1DAgj-NialQMAWSp0vblcuga-6Yfu_hhxn2kCi5HqKAWeXmhTo/exec";
+    <form id="nippoForm">
+      <!-- 現場選択 -->
+      <div class="mb-3">
+        <label for="genba" class="form-label">現場<span class="req">※必須</span></label>
+        <select class="form-select" id="genba" required onchange="filterMembersByGenba()">
+          <option value="">現場を選択してください</option>
+        </select>
+      </div>
 
-    liff.init({ liffId: "2010109198-rUyIvyiZ" })
+      <!-- 出勤職人選択（現場・勤務場所連動） -->
+      <div class="mb-3">
+        <label class="form-label">本日の出勤メンバー<span class="req">※必須（1名以上）</span></label>
+        <div class="member-box" id="memberListArea">
+          <div class="text-muted text-center py-3" style="font-size:13px;">現場を選択すると該当する職人が表示されます</div>
+        </div>
+      </div>
+
+      <!-- 日付 -->
+      <div class="mb-3">
+        <label for="date" class="form-label">日付<span class="req">※必須</span></label>
+        <input type="date" class="form-control" id="date" required onclick="this.showPicker()">
+      </div>
+
+      <!-- 出勤時間区分 -->
+      <div class="mb-3">
+        <label for="workType" class="form-label">出勤時間<span class="req">※必須</span></label>
+        <select class="form-select" id="workType" required>
+          <option value="定時">定時</option>
+          <option value="半日">半日</option>
+          <option value="残業">残業</option>
+        </select>
+      </div>
+
+      <!-- 残業時間 -->
+      <div class="mb-3">
+        <label for="overtime" class="form-label">残業時間</label>
+        <input type="text" class="form-control" id="overtime" placeholder="なし の場合は空欄でOK">
+      </div>
+
+      <!-- 備考 -->
+      <div class="mb-3">
+        <label for="bikou" class="form-label">備考</label>
+        <textarea class="form-control" id="bikou" rows="3" placeholder="作業内容や連絡事項があれば入力"></textarea>
+      </div>
+
+      <div class="d-grid gap-2 mt-4">
+        <button type="button" id="submitBtn" class="btn btn-primary btn-lg font-weight-bold" onclick="submitNippo()">日報を一括送信する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby0QtRfi_NLRdzfzdcwsdLN1-J22thpC8A82rYTjJ2x8NVCL4VObmtV_XVuN7QhttAW/exec";
+  const MY_LIFF_ID = "2010751814-Eqv3IzvP";
+  let currentLineUserId = "";
+  let currentEmployeeName = "";
+  let masterGenbaList = [];
+  let masterStaffList = [];
+
+  window.onload = function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date').value = today;
+
+    liff.init({ liffId: MY_LIFF_ID })
       .then(() => {
         if (!liff.isLoggedIn()) {
           liff.login();
         } else {
           liff.getProfile().then(profile => {
-            userProfile = profile;
-            document.getElementById("userName").innerText = profile.displayName;
-            fetchMasterData(); 
+            currentLineUserId = profile.userId;
+            checkUserRegistration(currentLineUserId);
           });
         }
       })
-      .catch((err) => { console.error("LIFF初期化エラー", err); });
-
-    function fetchMasterData() {
-      fetch(GAS_URL + "?type=init") 
-        .then(response => response.json())
-        .then(data => {
-          masterMenus = data.menus;
-          masterStaffs = data.staffs;
-          const shopSelect = document.getElementById("shopSelect");
-          data.shops.forEach(shop => {
-            let opt = document.createElement("option");
-            opt.value = shop.id;
-            opt.textContent = shop.name;
-            shopSelect.appendChild(opt);
-          });
-          const menuSelect = document.getElementById("menuSelect");
-          data.menus.forEach(menu => {
-            let opt = document.createElement("option");
-            opt.value = menu.id;
-            opt.textContent = menu.name;
-            menuSelect.appendChild(opt);
-          });
-          filterStaff();
-        });
-    }
-
-    function filterStaff() {
-      const shopId = document.getElementById("shopSelect").value;
-      const staffSelect = document.getElementById("staffSelect");
-      staffSelect.innerHTML = '<option value="">-- スタッフを選んでください --</option>';
-      masterStaffs.forEach(staff => {
-        if (!shopId || staff.shopId === shopId) {
-          let opt = document.createElement("option");
-          opt.value = staff.id;         
-          opt.textContent = staff.name; 
-          staffSelect.appendChild(opt);
-        }
+      .catch(err => {
+        document.getElementById('statusDisplay').innerText = "LIFF認証エラー: " + err;
       });
-    }
+  };
 
-    function checkSelections() {
-      const shop = document.getElementById("shopSelect").value;
-      const staff = document.getElementById("staffSelect").value; 
-      const menu = document.getElementById("menuSelect").value;
-      const calendarEl = document.getElementById('calendar');
-
-      if (shop && staff && menu) {
-        const selectedMenu = masterMenus.find(m => m.id === menu);
-        const duration = selectedMenu ? selectedMenu.duration : 60;
-        fetch(GAS_URL + "?staffId=" + staff + "&duration=" + duration)
-          .then(res => res.json())
-          .then(events => {
-            calendarEl.style.width = "100%";
-            calendarEl.style.display = 'block';
-            if (!calendar) {
-              initCalendar(events); 
-            } else {
-              calendar.removeAllEvents(); 
-              calendar.addEventSource(events); 
-              calendar.render();
-            }
-          });
-      } else {
-        calendarEl.style.display = 'none';
-        document.getElementById("selectionBox").style.display = 'none';
+  // 1. ユーザー在籍判定とマスタデータのロード
+  function checkUserRegistration(lineUserId) {
+    fetch(GAS_WEBAPP_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "getUserAuth", lineUserId: lineUserId })
+    })
+    .then(res => res.json())
+    .then(result => {
+      const display = document.getElementById('statusDisplay');
+      if (!result.success) {
+        display.className = "driver-info text-danger bg-danger-subtle";
+        display.innerText = "❌ " + result.message;
+        return;
       }
-    }
 
-    function initCalendar(initialEvents) {
-      const calendarEl = document.getElementById('calendar');
-      const now = new Date();
-      const updatedEvents = initialEvents.map(event => {
-        if (new Date(event.start) < now) {
-          return { ...event, title: '× 予約不可', backgroundColor: '#cccccc', borderColor: '#cccccc', editable: false };
-        }
-        return event;
+      masterGenbaList = result.genbaList || [];
+      masterStaffList = result.staffList || [];
+
+      // 現場プルダウンの生成（勤務場所データを属性に保持）
+      const genbaSelect = document.getElementById('genba');
+      let genbaHtml = '<option value="">現場を選択してください</option>';
+      masterGenbaList.forEach(g => {
+        genbaHtml += `<option value="${g.name}" data-workplace="${g.workPlace || ''}">${g.name}</option>`;
       });
+      genbaSelect.innerHTML = genbaHtml;
 
-      calendar = new FullCalendar.Calendar(calendarEl, {
-        timeZone: 'local',
-        initialView: 'timeGridThreeDay',
-        views: { timeGridThreeDay: { type: 'timeGrid', duration: { days: 3 }, buttonText: '3日間' } },
-        locale: 'ja',
-        allDaySlot: false,
-        slotMinTime: '09:00:00',
-        slotMaxTime: '19:00:00',
-        height: 'auto',
-        headerToolbar: { left: 'prev', center: 'title', right: 'next' },
-        events: updatedEvents, 
-        
-        eventClick: function(info) {
-          if (info.event.title.includes('×') || info.event.title.includes('予約不可')) {
-            alert('申し訳ありません。この枠はすでに予約が埋まっているか、過去の時間です。別の時間をお選びください。');
-            return; 
-          }
-          selectedSlot = info.event;
-          const start = new Date(selectedSlot.start);
-          const dateStr = (start.getMonth() + 1) + '月' + start.getDate() + '日';
-          const timeStr = start.getHours() + ':' + String(start.getMinutes()).padStart(2, '0');
-          document.getElementById("selectionText").innerText = '選択中：' + dateStr + ' ' + timeStr + '〜';
-          document.getElementById("selectionBox").style.display = 'block';
-          window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-        }
-      });
-      calendar.render();
+      if (result.registered) {
+        currentEmployeeName = result.employeeName;
+        display.innerText = "報告者: " + currentEmployeeName + " 様";
+        document.getElementById('mainContent').style.display = "block";
+      } else {
+        display.innerText = "未連携アカウントです";
+        document.getElementById('initRegisterArea').style.display = "block";
+        const select = document.getElementById('unlinkedNameSelect');
+        select.innerHTML = '<option value="">お名前を選択してください</option>';
+        result.unlinkedNames.forEach(name => {
+          select.innerHTML += `<option value="${name}">${name}</option>`;
+        });
+      }
+    })
+    .catch(err => {
+      document.getElementById('statusDisplay').innerText = "通信エラー: " + err;
+    });
+  }
+
+  // 2. 現場選択時に「勤務場所」が合致する職人だけを動的表示
+  function filterMembersByGenba() {
+    const genbaSelect = document.getElementById('genba');
+    const selectedOption = genbaSelect.options[genbaSelect.selectedIndex];
+    const selectedWorkPlace = selectedOption.getAttribute('data-workplace');
+    const area = document.getElementById('memberListArea');
+
+    if (!selectedOption.value) {
+      area.innerHTML = '<div class="text-muted text-center py-3" style="font-size:13px;">現場を選択してください</div>';
+      return;
     }
 
-    function submitReservation() {
-      if (!userProfile || !selectedSlot) return;
-      const start = new Date(selectedSlot.start);
-      const end = new Date(selectedSlot.end);
-      // 日付を日本の標準フォーマット（yyyy/MM/dd HH:mm）で組み立てて送信
-      const startTimeStr = start.getFullYear() + '/' + String(start.getMonth() + 1).padStart(2, '0') + '/' + String(start.getDate()).padStart(2, '0') + ' ' + String(start.getHours()).padStart(2, '0') + ':' + String(start.getMinutes()).padStart(2, '0');
-      const endTimeStr = end.getFullYear() + '/' + String(end.getMonth() + 1).padStart(2, '0') + '/' + String(end.getDate()).padStart(2, '0') + ' ' + String(end.getHours()).padStart(2, '0') + ':' + String(end.getMinutes()).padStart(2, '0');
+    // 現場の勤務場所（F列）と一致する職人を抽出（勤務場所が未指定の場合は全体表示）
+    const matchedStaff = masterStaffList.filter(staff => {
+      if (!selectedWorkPlace || selectedWorkPlace === "") return true;
+      return staff.workPlace === selectedWorkPlace;
+    });
 
-      const shopSelect = document.getElementById("shopSelect");
-      const staffSelect = document.getElementById("staffSelect");
-      const menuSelect = document.getElementById("menuSelect");
-
-      const reservationData = {
-        action: "reserve", // 💡GASに予約データであることを伝える合言葉
-        shopId: shopSelect.options[shopSelect.selectedIndex].text,
-        staffId: staffSelect.options[staffSelect.selectedIndex].text, 
-        startTime: startTimeStr,
-        endTime: endTimeStr,
-        name: userProfile.displayName,
-        lineUserId: userProfile.userId,
-        menu: menuSelect.options[menuSelect.selectedIndex].text
-      };
-
-      fetch(GAS_URL, { method: "POST", body: JSON.stringify(reservationData) })
-      .then(response => response.json())
-      .then(data => {
-        if (data.status === "success") {
-          alert("ご予約が完了しました！");
-          liff.closeWindow(); 
-        } else {
-          alert("予約に失敗しました。");
-        }
-      })
-      .catch(error => { alert("通信エラーが発生しました。"); });
+    if (matchedStaff.length === 0) {
+      area.innerHTML = '<div class="text-muted text-center py-3" style="font-size:13px;">該当する職人が登録されていません</div>';
+      return;
     }
-  </script>
+
+    let html = '';
+    matchedStaff.forEach((staff, index) => {
+      const isSelf = (staff.name === currentEmployeeName);
+      html += `
+        <div class="member-item">
+          <input class="form-check-input member-checkbox" type="checkbox" value="${staff.name}" id="staff_${index}" ${isSelf ? 'checked' : ''}>
+          <label class="member-label flex-grow-1" for="staff_${index}">
+            <b>${staff.name}</b> <span class="badge bg-secondary ms-1">${staff.company || ''}</span>
+          </label>
+        </div>
+      `;
+    });
+    area.innerHTML = html;
+  }
+
+  // 3. 初回アカウント連携
+  function submitRegistration() {
+    const selectedName = document.getElementById('unlinkedNameSelect').value;
+    if (!selectedName) { alert("お名前を選択してください。"); return; }
+
+    fetch(GAS_WEBAPP_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "registerLineUserId", empName: selectedName, lineUserId: currentLineUserId })
+    })
+    .then(res => res.json())
+    .then(res => {
+      alert(res.message);
+      if (res.success) location.reload();
+    })
+    .catch(err => alert("登録通信エラー: " + err));
+  }
+
+  // 4. 一括日報送信
+  function submitNippo() {
+    const form = document.getElementById('nippoForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const checkedBoxes = document.querySelectorAll('.member-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+      alert("本日の出勤メンバーを1名以上チェックしてください。");
+      return;
+    }
+    const selectedMembers = Array.from(checkedBoxes).map(cb => cb.value);
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = "送信中...";
+
+    const formData = {
+      action: "saveReportData",
+      lineUserId: currentLineUserId,
+      employeeName: currentEmployeeName,
+      selectedMembers: selectedMembers,
+      genba: document.getElementById('genba').value,
+      date: document.getElementById('date').value,
+      workType: document.getElementById('workType').value,
+      overtime: document.getElementById('overtime').value,
+      bikou: document.getElementById('bikou').value
+    };
+
+    fetch(GAS_WEBAPP_URL, {
+      method: "POST",
+      body: JSON.stringify(formData)
+    })
+    .then(res => res.json())
+    .then(res => {
+      alert(res.message);
+      btn.disabled = false;
+      btn.innerText = "日報を一括送信する";
+      if (res.success) liff.closeWindow();
+    })
+    .catch(err => {
+      alert("送信通信エラー: " + err);
+      btn.disabled = false;
+      btn.innerText = "日報を一括送信する";
+    });
+  }
+</script>
 </body>
 </html>
