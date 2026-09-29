@@ -12,13 +12,14 @@
     .driver-info { text-align: center; font-weight: bold; color: #007bff; margin-bottom: 12px; font-size: 15px; background: #e9f2ff; padding: 10px; border-radius: 8px; }
     .form-label { font-weight: bold; font-size: 14px; margin-bottom: 6px; }
     .form-control, .form-select { padding: 12px; font-size: 15px; border-radius: 8px; }
-    #mainContent, #initRegisterArea { display: none; }
+    #mainContent, #initRegisterArea, #bentoDetailArea { display: none; }
     .req { color: #dc3545; font-size: 12px; margin-left: 4px; }
-    .member-box { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 8px 12px; max-height: 240px; overflow-y: auto; }
+    .member-box { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 8px 12px; max-height: 220px; overflow-y: auto; }
     .member-item { padding: 8px 4px; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; }
     .member-item:last-child { border-bottom: none; }
-    .member-checkbox { width: 22px; height: 22px; margin-right: 12px; cursor: pointer; }
+    .member-checkbox, .bento-checkbox { width: 22px; height: 22px; margin-right: 12px; cursor: pointer; }
     .member-label { cursor: pointer; font-size: 15px; user-select: none; margin-bottom: 0; }
+    .bento-card { background-color: #fff8e1; border: 1px solid #ffe082; border-radius: 8px; padding: 12px; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -26,7 +27,7 @@
   
   <div class="driver-info" id="statusDisplay">LINE認証確認中...</div>
 
-  <!-- 初回アカウント連携エリア -->
+  <!-- 初回アカウント連携 -->
   <div class="card p-4 bg-white mb-3" id="initRegisterArea">
     <h5 class="text-primary font-weight-bold mb-2">🔰 初回アカウント連携</h5>
     <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。</p>
@@ -39,7 +40,7 @@
     <button type="button" class="btn btn-primary w-100 py-2 font-weight-bold" onclick="submitRegistration()">連携して利用を開始する</button>
   </div>
 
-  <!-- 日報入力メインフォーム -->
+  <!-- 日報入力フォーム -->
   <div class="card p-4 bg-white" id="mainContent">
     <h4 class="text-center mb-3 text-primary font-weight-bold">日報報告</h4>
     
@@ -52,7 +53,7 @@
         </select>
       </div>
 
-      <!-- 出勤職人選択（現場・勤務場所連動） -->
+      <!-- 出勤職人選択（現場連動） -->
       <div class="mb-3">
         <label class="form-label">本日の出勤メンバー<span class="req">※必須（1名以上）</span></label>
         <div class="member-box" id="memberListArea">
@@ -66,20 +67,43 @@
         <input type="date" class="form-control" id="date" required onclick="this.showPicker()">
       </div>
 
-      <!-- 出勤時間区分 -->
+      <!-- 出勤時間区分（💡早出を追加） -->
       <div class="mb-3">
         <label for="workType" class="form-label">出勤時間<span class="req">※必須</span></label>
         <select class="form-select" id="workType" required>
           <option value="定時">定時</option>
+          <option value="早出">早出</option>
           <option value="半日">半日</option>
           <option value="残業">残業</option>
         </select>
       </div>
 
-      <!-- 残業時間 -->
+      <!-- 残業・早出等の時間 -->
       <div class="mb-3">
-        <label for="overtime" class="form-label">残業時間</label>
+        <label for="overtime" class="form-label">時間外・残業時間</label>
         <input type="text" class="form-control" id="overtime" placeholder="なし の場合は空欄でOK">
+      </div>
+
+      <!-- 🍱 お弁当の有無・注文エリア -->
+      <div class="mb-3">
+        <div class="form-check form-switch p-2 bg-light rounded border">
+          <input class="form-check-input ms-0 me-2" type="checkbox" id="hasBento" style="width: 40px; height: 20px; cursor: pointer;" onchange="toggleBentoArea()">
+          <label class="form-check-label font-weight-bold" for="hasBento" style="cursor: pointer; padding-left: 8px;">🍱 本日のお弁当注文あり</label>
+        </div>
+
+        <!-- お弁当詳細エリア（スイッチONで出現） -->
+        <div id="bentoDetailArea" class="bento-card">
+          <div class="mb-2">
+            <label for="bentoPrice" class="form-label text-dark">お弁当の単価（1個あたり・円）<span class="req">※必須</span></label>
+            <input type="number" class="form-control" id="bentoPrice" placeholder="例: 500" value="500">
+          </div>
+          <div>
+            <label class="form-label text-dark">お弁当を注文した人<span class="req">※チェック</span></label>
+            <div class="member-box bg-white" id="bentoMemberListArea">
+              <!-- 出勤メンバーから自動抽出 -->
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 備考 -->
@@ -96,7 +120,7 @@
 </div>
 
 <script>
-  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwftxItrloU2dw_i6cK3xH7O2PvW_rDyhCigoINgSr81hT0rSBYFveUsa9H6UzZEsFB/exec";
+  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby0QtRfi_NLRdzfzdcwsdLN1-J22thpC8A82rYTjJ2x8NVCL4VObmtV_XVuN7QhttAW/exec";
   const MY_LIFF_ID = "2010751814-Eqv3IzvP";
   let currentLineUserId = "";
   let currentEmployeeName = "";
@@ -137,21 +161,14 @@
         return;
       }
 
-      // 現場リストと職人リストを保持
       masterGenbaList = result.genbaList || [];
       masterStaffList = result.staffList || [];
 
-      // 現場プルダウンの生成（絶対にundefinedにならない安全抽出）
       const genbaSelect = document.getElementById('genba');
       let genbaHtml = '<option value="">現場を選択してください</option>';
       masterGenbaList.forEach(item => {
-        let gName = "";
-        if (typeof item === 'string') {
-          gName = item.trim();
-        } else if (item && typeof item === 'object') {
-          gName = (item.name || "").trim();
-        }
-        if (gName !== "" && gName !== "undefined") {
+        let gName = (typeof item === 'string') ? item.trim() : ((item && item.name) ? item.name.trim() : "");
+        if (gName && gName !== "undefined") {
           genbaHtml += `<option value="${gName}">${gName}</option>`;
         }
       });
@@ -176,7 +193,7 @@
     });
   }
 
-  // 現場選択時に、勤務場所（F列）が現場名と一致する職人を表示
+  // 現場選択時に職人を抽出
   function filterMembersByGenba() {
     const genbaSelect = document.getElementById('genba');
     const selectedGenba = (genbaSelect.value || "").trim();
@@ -184,10 +201,10 @@
 
     if (!selectedGenba) {
       area.innerHTML = '<div class="text-muted text-center py-3" style="font-size:13px;">現場を選択してください</div>';
+      updateBentoMemberList();
       return;
     }
 
-    // 💡 職人の「勤務場所（F列）」が選択された「現場名」と一致する人を抽出
     const matchedStaff = masterStaffList.filter(staff => {
       const wp = String(staff.workPlace || "").trim();
       return wp === selectedGenba;
@@ -195,6 +212,7 @@
 
     if (matchedStaff.length === 0) {
       area.innerHTML = `<div class="text-muted text-center py-3" style="font-size:13px;">「${selectedGenba}」に登録されている職人がいません</div>`;
+      updateBentoMemberList();
       return;
     }
 
@@ -203,7 +221,7 @@
       const isSelf = (staff.name === currentEmployeeName);
       html += `
         <div class="member-item">
-          <input class="form-check-input member-checkbox" type="checkbox" value="${staff.name}" id="staff_${index}" ${isSelf ? 'checked' : ''}>
+          <input class="form-check-input member-checkbox" type="checkbox" value="${staff.name}" id="staff_${index}" ${isSelf ? 'checked' : ''} onchange="updateBentoMemberList()">
           <label class="member-label flex-grow-1" for="staff_${index}">
             <b>${staff.name}</b> <span class="badge bg-secondary ms-1">${staff.company || ''}</span>
           </label>
@@ -211,12 +229,44 @@
       `;
     });
     area.innerHTML = html;
+    updateBentoMemberList();
+  }
+
+  // お弁当エリアの表示・非表示切り替え
+  function toggleBentoArea() {
+    const isChecked = document.getElementById('hasBento').checked;
+    document.getElementById('bentoDetailArea').style.display = isChecked ? 'block' : 'none';
+    if (isChecked) updateBentoMemberList();
+  }
+
+  // 出勤にチェックが入っている人のみをお弁当リストに同期反映
+  function updateBentoMemberList() {
+    const bentoArea = document.getElementById('bentoMemberListArea');
+    const checkedWorkers = document.querySelectorAll('.member-checkbox:checked');
+
+    if (checkedWorkers.length === 0) {
+      bentoArea.innerHTML = '<div class="text-muted text-center py-2" style="font-size:13px;">出勤メンバーにチェックを入れてください</div>';
+      return;
+    }
+
+    let html = '';
+    checkedWorkers.forEach((cb, idx) => {
+      const name = cb.value;
+      html += `
+        <div class="member-item">
+          <input class="form-check-input bento-checkbox" type="checkbox" value="${name}" id="bento_${idx}" checked>
+          <label class="member-label flex-grow-1" for="bento_${idx}">
+            🍱 <b>${name}</b>
+          </label>
+        </div>
+      `;
+    });
+    bentoArea.innerHTML = html;
   }
 
   function submitRegistration() {
     const selectedName = document.getElementById('unlinkedNameSelect').value;
     if (!selectedName) { alert("お名前を選択してください。"); return; }
-
     fetch(GAS_WEBAPP_URL, {
       method: "POST",
       body: JSON.stringify({ action: "registerLineUserId", empName: selectedName, lineUserId: currentLineUserId })
@@ -240,6 +290,16 @@
     }
     const selectedMembers = Array.from(checkedBoxes).map(cb => cb.value);
 
+    // お弁当注文データの取得
+    const hasBento = document.getElementById('hasBento').checked;
+    let bentoPrice = 0;
+    let bentoOrders = [];
+    if (hasBento) {
+      bentoPrice = Number(document.getElementById('bentoPrice').value) || 0;
+      const bentoCheckedBoxes = document.querySelectorAll('.bento-checkbox:checked');
+      bentoOrders = Array.from(bentoCheckedBoxes).map(cb => cb.value);
+    }
+
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerText = "送信中...";
@@ -253,6 +313,9 @@
       date: document.getElementById('date').value,
       workType: document.getElementById('workType').value,
       overtime: document.getElementById('overtime').value,
+      hasBento: hasBento,
+      bentoPrice: bentoPrice,
+      bentoOrders: bentoOrders,
       bikou: document.getElementById('bikou').value
     };
 
