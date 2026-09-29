@@ -99,7 +99,6 @@
 </div>
 
 <script>
-  // 💡 ご利用中のGASウェブアプリURL（末尾が /exec）
   const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby0QtRfi_NLRdzfzdcwsdLN1-J22thpC8A82rYTjJ2x8NVCL4VObmtV_XVuN7QhttAW/exec";
   const MY_LIFF_ID = "2010751814-Eqv3IzvP";
   let currentLineUserId = "";
@@ -127,7 +126,6 @@
       });
   };
 
-  // 1. ユーザー判定とマスタデータ取得
   function checkUserRegistration(lineUserId) {
     fetch(GAS_WEBAPP_URL, {
       method: "POST",
@@ -145,11 +143,15 @@
       masterGenbaList = result.genbaList || [];
       masterStaffList = result.staffList || [];
 
-      // 現場プルダウンの生成（勤務場所属性を保持）
+      // 💡 万能パース処理：文字配列でもオブジェクト配列でも確実に現場名を表示
       const genbaSelect = document.getElementById('genba');
       let genbaHtml = '<option value="">現場を選択してください</option>';
       masterGenbaList.forEach(g => {
-        genbaHtml += `<option value="${g.name}" data-workplace="${g.workPlace || ''}">${g.name}</option>`;
+        const gName = (typeof g === 'object' && g !== null) ? (g.name || '') : String(g);
+        const gWp = (typeof g === 'object' && g !== null) ? (g.workPlace || '') : gName;
+        if (gName && gName !== 'undefined') {
+          genbaHtml += `<option value="${gName}" data-workplace="${gWp}">${gName}</option>`;
+        }
       });
       genbaSelect.innerHTML = genbaHtml;
 
@@ -172,7 +174,6 @@
     });
   }
 
-  // 2. 現場選択時に該当する職人を動的表示（照合の完全一致・柔軟対応版）
   function filterMembersByGenba() {
     const genbaSelect = document.getElementById('genba');
     const selectedGenbaName = genbaSelect.value ? genbaSelect.value.trim() : "";
@@ -185,7 +186,7 @@
       return;
     }
 
-    // 💡 勤務場所が合致する職人、または現場名そのものが勤務場所に登録されている職人を抽出
+    // 勤務場所または現場名と合致する職人を抽出
     const matchedStaff = masterStaffList.filter(staff => {
       const staffWp = (staff.workPlace || '').trim();
       if (!staffWp) return false;
@@ -212,7 +213,6 @@
     area.innerHTML = html;
   }
 
-  // 3. 初回アカウント連携
   function submitRegistration() {
     const selectedName = document.getElementById('unlinkedNameSelect').value;
     if (!selectedName) { alert("お名前を選択してください。"); return; }
@@ -229,7 +229,6 @@
     .catch(err => alert("登録通信エラー: " + err));
   }
 
-  // 4. 一括日報送信
   function submitNippo() {
     const form = document.getElementById('nippoForm');
     if (!form.checkValidity()) { form.reportValidity(); return; }
