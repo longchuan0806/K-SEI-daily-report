@@ -99,7 +99,8 @@
 </div>
 
 <script>
-  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwftxItrloU2dw_i6cK3xH7O2PvW_rDyhCigoINgSr81hT0rSBYFveUsa9H6UzZEsFB/exec";
+  // 💡 ご利用中のGASウェブアプリURL（末尾が /exec）
+  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby0QtRfi_NLRdzfzdcwsdLN1-J22thpC8A82rYTjJ2x8NVCL4VObmtV_XVuN7QhttAW/exec";
   const MY_LIFF_ID = "2010751814-Eqv3IzvP";
   let currentLineUserId = "";
   let currentEmployeeName = "";
@@ -126,7 +127,7 @@
       });
   };
 
-  // 1. ユーザー在籍判定とマスタデータのロード
+  // 1. ユーザー判定とマスタデータ取得
   function checkUserRegistration(lineUserId) {
     fetch(GAS_WEBAPP_URL, {
       method: "POST",
@@ -144,7 +145,7 @@
       masterGenbaList = result.genbaList || [];
       masterStaffList = result.staffList || [];
 
-      // 現場プルダウンの生成（勤務場所データを属性に保持）
+      // 現場プルダウンの生成（勤務場所属性を保持）
       const genbaSelect = document.getElementById('genba');
       let genbaHtml = '<option value="">現場を選択してください</option>';
       masterGenbaList.forEach(g => {
@@ -171,22 +172,24 @@
     });
   }
 
-  // 2. 現場選択時に「勤務場所」が合致する職人だけを動的表示
+  // 2. 現場選択時に該当する職人を動的表示（照合の完全一致・柔軟対応版）
   function filterMembersByGenba() {
     const genbaSelect = document.getElementById('genba');
+    const selectedGenbaName = genbaSelect.value ? genbaSelect.value.trim() : "";
     const selectedOption = genbaSelect.options[genbaSelect.selectedIndex];
-    const selectedWorkPlace = selectedOption.getAttribute('data-workplace');
+    const selectedWorkPlace = (selectedOption.getAttribute('data-workplace') || '').trim();
     const area = document.getElementById('memberListArea');
 
-    if (!selectedOption.value) {
+    if (!selectedGenbaName) {
       area.innerHTML = '<div class="text-muted text-center py-3" style="font-size:13px;">現場を選択してください</div>';
       return;
     }
 
-    // 現場の勤務場所（F列）と一致する職人を抽出（勤務場所が未指定の場合は全体表示）
+    // 💡 勤務場所が合致する職人、または現場名そのものが勤務場所に登録されている職人を抽出
     const matchedStaff = masterStaffList.filter(staff => {
-      if (!selectedWorkPlace || selectedWorkPlace === "") return true;
-      return staff.workPlace === selectedWorkPlace;
+      const staffWp = (staff.workPlace || '').trim();
+      if (!staffWp) return false;
+      return (selectedWorkPlace !== "" && staffWp === selectedWorkPlace) || (staffWp === selectedGenbaName);
     });
 
     if (matchedStaff.length === 0) {
