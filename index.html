@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>日報入力</title>
-  <!-- LINE LIFF SDK -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <!-- Bootstrap 5 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     body { background-color: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; }
@@ -16,23 +14,22 @@
     .form-control, .form-select { padding: 12px; font-size: 15px; border-radius: 8px; }
     #mainContent, #initRegisterArea { display: none; }
     .req { color: #dc3545; font-size: 12px; margin-left: 4px; }
-    .member-box { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 8px 12px; max-height: 220px; overflow-y: auto; }
+    .member-box { background: #f8f9fa; border: 2px solid #e9ecef; border-radius: 8px; padding: 8px 12px; max-height: 240px; overflow-y: auto; }
     .member-item { padding: 8px 4px; border-bottom: 1px solid #dee2e6; display: flex; align-items: center; }
     .member-item:last-child { border-bottom: none; }
-    .member-checkbox { width: 20px; height: 20px; margin-right: 12px; cursor: pointer; }
-    .member-label { cursor: pointer; font-size: 15px; user-select: none; }
+    .member-checkbox { width: 22px; height: 22px; margin-right: 12px; cursor: pointer; }
+    .member-label { cursor: pointer; font-size: 15px; user-select: none; margin-bottom: 0; }
   </style>
 </head>
 <body>
 <div class="container py-2" style="max-width: 520px;">
   
-  <!-- 認証状態表示バー -->
   <div class="driver-info" id="statusDisplay">LINE認証確認中...</div>
 
-  <!-- 🔰 初回アカウント連携エリア -->
+  <!-- 初回アカウント連携エリア -->
   <div class="card p-4 bg-white mb-3" id="initRegisterArea">
     <h5 class="text-primary font-weight-bold mb-2">🔰 初回アカウント連携</h5>
-    <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。<br>次回以降はお名前が自動認識されます。</p>
+    <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。</p>
     <div class="mb-3">
       <label for="unlinkedNameSelect" class="form-label">お名前を選択<span class="req">※必須</span></label>
       <select class="form-select" id="unlinkedNameSelect">
@@ -42,7 +39,7 @@
     <button type="button" class="btn btn-primary w-100 py-2 font-weight-bold" onclick="submitRegistration()">連携して利用を開始する</button>
   </div>
 
-  <!-- 📝 日報入力メインフォーム -->
+  <!-- 日報入力メインフォーム -->
   <div class="card p-4 bg-white" id="mainContent">
     <h4 class="text-center mb-3 text-primary font-weight-bold">日報報告</h4>
     
@@ -140,17 +137,22 @@
         return;
       }
 
+      // 現場リストと職人リストを保持
       masterGenbaList = result.genbaList || [];
       masterStaffList = result.staffList || [];
 
-      // 💡 万能パース処理：文字配列でもオブジェクト配列でも確実に現場名を表示
+      // 現場プルダウンの生成（絶対にundefinedにならない安全抽出）
       const genbaSelect = document.getElementById('genba');
       let genbaHtml = '<option value="">現場を選択してください</option>';
-      masterGenbaList.forEach(g => {
-        const gName = (typeof g === 'object' && g !== null) ? (g.name || '') : String(g);
-        const gWp = (typeof g === 'object' && g !== null) ? (g.workPlace || '') : gName;
-        if (gName && gName !== 'undefined') {
-          genbaHtml += `<option value="${gName}" data-workplace="${gWp}">${gName}</option>`;
+      masterGenbaList.forEach(item => {
+        let gName = "";
+        if (typeof item === 'string') {
+          gName = item.trim();
+        } else if (item && typeof item === 'object') {
+          gName = (item.name || "").trim();
+        }
+        if (gName !== "" && gName !== "undefined") {
+          genbaHtml += `<option value="${gName}">${gName}</option>`;
         }
       });
       genbaSelect.innerHTML = genbaHtml;
@@ -164,7 +166,7 @@
         document.getElementById('initRegisterArea').style.display = "block";
         const select = document.getElementById('unlinkedNameSelect');
         select.innerHTML = '<option value="">お名前を選択してください</option>';
-        result.unlinkedNames.forEach(name => {
+        (result.unlinkedNames || []).forEach(name => {
           select.innerHTML += `<option value="${name}">${name}</option>`;
         });
       }
@@ -174,27 +176,25 @@
     });
   }
 
+  // 現場選択時に、勤務場所（F列）が現場名と一致する職人を表示
   function filterMembersByGenba() {
     const genbaSelect = document.getElementById('genba');
-    const selectedGenbaName = genbaSelect.value ? genbaSelect.value.trim() : "";
-    const selectedOption = genbaSelect.options[genbaSelect.selectedIndex];
-    const selectedWorkPlace = (selectedOption.getAttribute('data-workplace') || '').trim();
+    const selectedGenba = (genbaSelect.value || "").trim();
     const area = document.getElementById('memberListArea');
 
-    if (!selectedGenbaName) {
+    if (!selectedGenba) {
       area.innerHTML = '<div class="text-muted text-center py-3" style="font-size:13px;">現場を選択してください</div>';
       return;
     }
 
-    // 勤務場所または現場名と合致する職人を抽出
+    // 💡 職人の「勤務場所（F列）」が選択された「現場名」と一致する人を抽出
     const matchedStaff = masterStaffList.filter(staff => {
-      const staffWp = (staff.workPlace || '').trim();
-      if (!staffWp) return false;
-      return (selectedWorkPlace !== "" && staffWp === selectedWorkPlace) || (staffWp === selectedGenbaName);
+      const wp = String(staff.workPlace || "").trim();
+      return wp === selectedGenba;
     });
 
     if (matchedStaff.length === 0) {
-      area.innerHTML = '<div class="text-muted text-center py-3" style="font-size:13px;">該当する職人が登録されていません</div>';
+      area.innerHTML = `<div class="text-muted text-center py-3" style="font-size:13px;">「${selectedGenba}」に登録されている職人がいません</div>`;
       return;
     }
 
