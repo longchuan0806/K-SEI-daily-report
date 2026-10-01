@@ -32,11 +32,11 @@
   <!-- 初回アカウント連携エリア -->
   <div class="card p-4 bg-white mb-3" id="initRegisterArea">
     <h5 class="text-primary font-weight-bold mb-2">🔰 初回アカウント連携</h5>
-    <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。<br>次回以降はお名前が自動認識されます。</p>
+    <p class="text-muted" style="font-size: 13px;">あなたのお名前を選択して「連携する」を押してください。<br>次回以降はお名前が自動認識されます。</p>
     <div class="mb-3">
       <label for="unlinkedNameSelect" class="form-label">お名前を選択<span class="req">※必須</span></label>
       <select class="form-select" id="unlinkedNameSelect">
-        <option value="">読み込み中...</option>
+        <option value="">お名前を選択してください</option>
       </select>
     </div>
     <button type="button" class="btn btn-primary w-100 py-2 font-weight-bold" onclick="submitRegistration()">連携して利用を開始する</button>
@@ -135,7 +135,6 @@
     document.getElementById('date').value = today;
     const display = document.getElementById('statusDisplay');
 
-    // 💡 フリーズ防止：すべての例外を拾って画面に理由を表示
     liff.init({ liffId: MY_LIFF_ID })
       .then(() => {
         if (!liff.isLoggedIn()) {
@@ -197,8 +196,19 @@
         document.getElementById('initRegisterArea').style.display = "block";
         const select = document.getElementById('unlinkedNameSelect');
         select.innerHTML = '<option value="">お名前を選択してください</option>';
-        (result.unlinkedNames || []).forEach(name => {
-          select.innerHTML += `<option value="${name}">${name}</option>`;
+
+        // 💡 バックアップ処理：unlinkedNamesが空でも在籍職人リストから必ず全員を並べる
+        let candidateNames = result.unlinkedNames || [];
+        if (candidateNames.length === 0 && masterStaffList.length > 0) {
+          candidateNames = masterStaffList.map(s => s.name);
+        }
+
+        // 重複を除去してプルダウンを生成
+        const uniqueNames = Array.from(new Set(candidateNames));
+        uniqueNames.forEach(name => {
+          if (name && name !== "undefined") {
+            select.innerHTML += `<option value="${name}">${name}</option>`;
+          }
         });
       }
     })
@@ -230,7 +240,6 @@
       return;
     }
 
-    // K-SEIを先頭にソート
     matchedStaff.sort((a, b) => {
       const aIsKsei = (a.company === "K-SEI") ? 0 : 1;
       const bIsKsei = (b.company === "K-SEI") ? 0 : 1;
@@ -300,6 +309,7 @@
   function submitRegistration() {
     const selectedName = document.getElementById('unlinkedNameSelect').value;
     if (!selectedName) { alert("お名前を選択してください。"); return; }
+
     fetch(GAS_WEBAPP_URL, {
       method: "POST",
       body: JSON.stringify({ action: "registerLineUserId", empName: selectedName, lineUserId: currentLineUserId })
