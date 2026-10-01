@@ -4,7 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>日報入力</title>
+  <!-- LINE LIFF SDK -->
   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <!-- Bootstrap 5 -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     body { background-color: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 12px; }
@@ -27,10 +29,10 @@
   
   <div class="driver-info" id="statusDisplay">LINE認証確認中...</div>
 
-  <!-- 初回アカウント連携 -->
+  <!-- 初回アカウント連携エリア -->
   <div class="card p-4 bg-white mb-3" id="initRegisterArea">
     <h5 class="text-primary font-weight-bold mb-2">🔰 初回アカウント連携</h5>
-    <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。</p>
+    <p class="text-muted" style="font-size: 13px;">お名前を選択して「連携する」を押してください。<br>次回以降はお名前が自動認識されます。</p>
     <div class="mb-3">
       <label for="unlinkedNameSelect" class="form-label">お名前を選択<span class="req">※必須</span></label>
       <select class="form-select" id="unlinkedNameSelect">
@@ -40,7 +42,7 @@
     <button type="button" class="btn btn-primary w-100 py-2 font-weight-bold" onclick="submitRegistration()">連携して利用を開始する</button>
   </div>
 
-  <!-- 日報入力フォーム -->
+  <!-- 日報入力メインフォーム -->
   <div class="card p-4 bg-white" id="mainContent">
     <h4 class="text-center mb-3 text-primary font-weight-bold">日報報告</h4>
     
@@ -53,7 +55,7 @@
         </select>
       </div>
 
-      <!-- 出勤職人選択（現場連動） -->
+      <!-- 出勤職人選択（K-SEI最優先ソート） -->
       <div class="mb-3">
         <label class="form-label">本日の出勤メンバー<span class="req">※必須（1名以上）</span></label>
         <div class="member-box" id="memberListArea">
@@ -67,7 +69,7 @@
         <input type="date" class="form-control" id="date" required onclick="this.showPicker()">
       </div>
 
-      <!-- 出勤時間区分（💡早出を追加） -->
+      <!-- 出勤時間区分 -->
       <div class="mb-3">
         <label for="workType" class="form-label">出勤時間<span class="req">※必須</span></label>
         <select class="form-select" id="workType" required>
@@ -91,16 +93,15 @@
           <label class="form-check-label font-weight-bold" for="hasBento" style="cursor: pointer; padding-left: 8px;">🍱 本日のお弁当注文あり</label>
         </div>
 
-        <!-- お弁当詳細エリア（スイッチONで出現） -->
         <div id="bentoDetailArea" class="bento-card">
           <div class="mb-2">
             <label for="bentoPrice" class="form-label text-dark">お弁当の単価（1個あたり・円）<span class="req">※必須</span></label>
-            <input type="number" class="form-control" id="bentoPrice" placeholder="例: 500" value="500">
+            <input type="number" class="form-control" id="bentoPrice" placeholder="例: 460" value="460">
           </div>
           <div>
             <label class="form-label text-dark">お弁当を注文した人<span class="req">※チェック</span></label>
             <div class="member-box bg-white" id="bentoMemberListArea">
-              <!-- 出勤メンバーから自動抽出 -->
+              <!-- 出勤メンバーから連動抽出 -->
             </div>
           </div>
         </div>
@@ -120,41 +121,50 @@
 </div>
 
 <script>
-  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwftxItrloU2dw_i6cK3xH7O2PvW_rDyhCigoINgSr81hT0rSBYFveUsa9H6UzZEsFB/exec";
-  const MY_LIFF_ID = "2010751814-Eqv3IzvP";
+  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby0QtRfi_NLRdzfzdcwsdLN1-J22thpC8A82rYTjJ2x8NVCL4VObmtV_XVuN7QhttAW/exec";
+  const MY_LIFF_ID = "2011777275-7vOnVH8G";
+
   let currentLineUserId = "";
   let currentEmployeeName = "";
   let masterGenbaList = [];
   let masterStaffList = [];
+  let genbaDetailsMap = {};
 
   window.onload = function() {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('date').value = today;
+    const display = document.getElementById('statusDisplay');
 
+    // 💡 フリーズ防止：すべての例外を拾って画面に理由を表示
     liff.init({ liffId: MY_LIFF_ID })
       .then(() => {
         if (!liff.isLoggedIn()) {
+          display.innerText = "LINEログイン画面へ移動します...";
           liff.login();
         } else {
-          liff.getProfile().then(profile => {
-            currentLineUserId = profile.userId;
-            checkUserRegistration(currentLineUserId);
-          });
+          return liff.getProfile();
         }
       })
+      .then(profile => {
+        if (!profile) return;
+        currentLineUserId = profile.userId;
+        display.innerText = "データ読み込み中...";
+        checkUserRegistration(currentLineUserId);
+      })
       .catch(err => {
-        document.getElementById('statusDisplay').innerText = "LIFF認証エラー: " + err;
+        display.className = "driver-info text-danger bg-danger-subtle";
+        display.innerText = "❌ LIFF初期化エラー: " + (err.message || err);
       });
   };
 
   function checkUserRegistration(lineUserId) {
+    const display = document.getElementById('statusDisplay');
     fetch(GAS_WEBAPP_URL, {
       method: "POST",
       body: JSON.stringify({ action: "getUserAuth", lineUserId: lineUserId })
     })
     .then(res => res.json())
     .then(result => {
-      const display = document.getElementById('statusDisplay');
       if (!result.success) {
         display.className = "driver-info text-danger bg-danger-subtle";
         display.innerText = "❌ " + result.message;
@@ -163,6 +173,10 @@
 
       masterGenbaList = result.genbaList || [];
       masterStaffList = result.staffList || [];
+      const genbaDetails = result.genbaDetails || [];
+      genbaDetails.forEach(g => {
+        genbaDetailsMap[g.name] = g;
+      });
 
       const genbaSelect = document.getElementById('genba');
       let genbaHtml = '<option value="">現場を選択してください</option>';
@@ -189,11 +203,11 @@
       }
     })
     .catch(err => {
-      document.getElementById('statusDisplay').innerText = "通信エラー: " + err;
+      display.className = "driver-info text-danger bg-danger-subtle";
+      display.innerText = "❌ サーバー通信エラー: " + (err.message || err);
     });
   }
 
-  // 現場選択時に職人を抽出
   function filterMembersByGenba() {
     const genbaSelect = document.getElementById('genba');
     const selectedGenba = (genbaSelect.value || "").trim();
@@ -216,14 +230,26 @@
       return;
     }
 
+    // K-SEIを先頭にソート
+    matchedStaff.sort((a, b) => {
+      const aIsKsei = (a.company === "K-SEI") ? 0 : 1;
+      const bIsKsei = (b.company === "K-SEI") ? 0 : 1;
+      return aIsKsei - bIsKsei;
+    });
+
     let html = '';
     matchedStaff.forEach((staff, index) => {
       const isSelf = (staff.name === currentEmployeeName);
+      const isKsei = (staff.company === "K-SEI");
+      const companyBadge = isKsei
+        ? `<span class="badge bg-primary ms-1">K-SEI</span>`
+        : `<span class="badge bg-secondary ms-1">${staff.company || ''}</span>`;
+
       html += `
         <div class="member-item">
-          <input class="form-check-input member-checkbox" type="checkbox" value="${staff.name}" id="staff_${index}" ${isSelf ? 'checked' : ''} onchange="updateBentoMemberList()">
+          <input class="form-check-input member-checkbox" type="checkbox" value="${staff.name}" data-company="${staff.company || ''}" id="staff_${index}" ${isSelf ? 'checked' : ''} onchange="updateBentoMemberList()">
           <label class="member-label flex-grow-1" for="staff_${index}">
-            <b>${staff.name}</b> <span class="badge bg-secondary ms-1">${staff.company || ''}</span>
+            <b>${staff.name}</b> ${companyBadge}
           </label>
         </div>
       `;
@@ -232,31 +258,38 @@
     updateBentoMemberList();
   }
 
-  // お弁当エリアの表示・非表示切り替え
   function toggleBentoArea() {
     const isChecked = document.getElementById('hasBento').checked;
     document.getElementById('bentoDetailArea').style.display = isChecked ? 'block' : 'none';
     if (isChecked) updateBentoMemberList();
   }
 
-  // 出勤にチェックが入っている人のみをお弁当リストに同期反映
   function updateBentoMemberList() {
     const bentoArea = document.getElementById('bentoMemberListArea');
-    const checkedWorkers = document.querySelectorAll('.member-checkbox:checked');
+    const checkedBoxes = Array.from(document.querySelectorAll('.member-checkbox:checked'));
 
-    if (checkedWorkers.length === 0) {
+    if (checkedBoxes.length === 0) {
       bentoArea.innerHTML = '<div class="text-muted text-center py-2" style="font-size:13px;">出勤メンバーにチェックを入れてください</div>';
       return;
     }
 
+    checkedBoxes.sort((a, b) => {
+      const aIsKsei = (a.getAttribute('data-company') === "K-SEI") ? 0 : 1;
+      const bIsKsei = (b.getAttribute('data-company') === "K-SEI") ? 0 : 1;
+      return aIsKsei - bIsKsei;
+    });
+
     let html = '';
-    checkedWorkers.forEach((cb, idx) => {
+    checkedBoxes.forEach((cb, idx) => {
       const name = cb.value;
+      const company = cb.getAttribute('data-company') || '';
+      const displayLabel = (company && company !== "K-SEI") ? `${name} (${company})` : name;
+
       html += `
         <div class="member-item">
           <input class="form-check-input bento-checkbox" type="checkbox" value="${name}" id="bento_${idx}" checked>
           <label class="member-label flex-grow-1" for="bento_${idx}">
-            🍱 <b>${name}</b>
+            🍱 <b>${displayLabel}</b>
           </label>
         </div>
       `;
@@ -290,7 +323,6 @@
     }
     const selectedMembers = Array.from(checkedBoxes).map(cb => cb.value);
 
-    // お弁当注文データの取得
     const hasBento = document.getElementById('hasBento').checked;
     let bentoPrice = 0;
     let bentoOrders = [];
@@ -299,6 +331,9 @@
       const bentoCheckedBoxes = document.querySelectorAll('.bento-checkbox:checked');
       bentoOrders = Array.from(bentoCheckedBoxes).map(cb => cb.value);
     }
+
+    const selectedGenbaName = document.getElementById('genba').value;
+    const gDetail = genbaDetailsMap[selectedGenbaName] || {};
 
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
@@ -309,7 +344,9 @@
       lineUserId: currentLineUserId,
       employeeName: currentEmployeeName,
       selectedMembers: selectedMembers,
-      genba: document.getElementById('genba').value,
+      genba: selectedGenbaName,
+      workPlace: gDetail.workPlace || selectedGenbaName,
+      motouke: gDetail.motouke || "",
       date: document.getElementById('date').value,
       workType: document.getElementById('workType').value,
       overtime: document.getElementById('overtime').value,
