@@ -164,6 +164,9 @@
     })
     .then(res => res.json())
     .then(result => {
+      // 🔍 診断用アラート：届いた職人の人数と名前をそのままポップアップで表示
+      alert("【診断結果】\n届いた人数: " + (result.unlinkedNames ? result.unlinkedNames.length : 0) + "名\n名前一覧: " + (result.unlinkedNames ? result.unlinkedNames.join(", ") : "なし"));
+
       if (!result.success) {
         display.className = "driver-info text-danger bg-danger-subtle";
         display.innerText = "❌ " + result.message;
@@ -197,13 +200,12 @@
         const select = document.getElementById('unlinkedNameSelect');
         select.innerHTML = '<option value="">お名前を選択してください</option>';
 
-        // 💡 バックアップ処理：unlinkedNamesが空でも在籍職人リストから必ず全員を並べる
+        // 💡 バックアップ処理：unlinkedNamesが空でもstaffListから全員を並べる
         let candidateNames = result.unlinkedNames || [];
         if (candidateNames.length === 0 && masterStaffList.length > 0) {
           candidateNames = masterStaffList.map(s => s.name);
         }
 
-        // 重複を除去してプルダウンを生成
         const uniqueNames = Array.from(new Set(candidateNames));
         uniqueNames.forEach(name => {
           if (name && name !== "undefined") {
@@ -355,7 +357,6 @@
       employeeName: currentEmployeeName,
       selectedMembers: selectedMembers,
       genba: selectedGenbaName,
-      workPlace: gDetail.workPlace || selectedGenbaName,
       motouke: gDetail.motouke || "",
       date: document.getElementById('date').value,
       workType: document.getElementById('workType').value,
