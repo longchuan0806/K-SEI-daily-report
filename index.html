@@ -121,6 +121,7 @@
 </div>
 
 <script>
+  // 🔑 ステップ2でコピーした「現在の最新ウェブアプリURL」をここに貼り付けます
   const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwftxItrloU2dw_i6cK3xH7O2PvW_rDyhCigoINgSr81hT0rSBYFveUsa9H6UzZEsFB/exec";
   const MY_LIFF_ID = "2011777275-7vOnVH8G";
 
@@ -164,14 +165,6 @@
     })
     .then(res => res.json())
     .then(result => {
-      // 🔍 改善：届いたサーバー通信の生データをフル診断
-      alert("【診断結果】\n成功か: " + result.success + 
-            "\nメッセージ: " + (result.message || "なし") + 
-            "\n対象シート: " + (result.debugSheet || "不明") + 
-            "\nシート行数: " + (result.debugRowCount || 0) + 
-            "\n届いた人数: " + (result.unlinkedNames ? result.unlinkedNames.length : 0) + "名" +
-            "\n名前一覧: " + (result.unlinkedNames ? result.unlinkedNames.join(", ") : "空っぽ"));
-
       if (!result.success) {
         display.className = "driver-info text-danger bg-danger-subtle";
         display.innerText = "❌ " + result.message;
@@ -205,13 +198,9 @@
         const select = document.getElementById('unlinkedNameSelect');
         select.innerHTML = '<option value="">お名前を選択してください</option>';
 
-        let candidateNames = result.unlinkedNames || [];
-        if (candidateNames.length === 0 && masterStaffList.length > 0) {
-          candidateNames = masterStaffList.map(s => s.name);
-        }
-
-        const uniqueNames = Array.from(new Set(candidateNames));
-        uniqueNames.forEach(name => {
+        // 💡 B列在籍ON かつ E列IDなし の職人のみを表示
+        const targetNames = result.unlinkedNames || [];
+        targetNames.forEach(name => {
           if (name && name !== "undefined") {
             select.innerHTML += `<option value="${name}">${name}</option>`;
           }
