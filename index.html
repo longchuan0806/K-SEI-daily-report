@@ -121,7 +121,7 @@
 </div>
 
 <script>
-  // 🔑 ステップ2でコピーした「現在の最新ウェブアプリURL」をここに貼り付けます
+  // 🔑 最新のWebアプリURLを適用
   const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwftxItrloU2dw_i6cK3xH7O2PvW_rDyhCigoINgSr81hT0rSBYFveUsa9H6UzZEsFB/exec";
   const MY_LIFF_ID = "2011777275-7vOnVH8G";
 
@@ -198,7 +198,7 @@
         const select = document.getElementById('unlinkedNameSelect');
         select.innerHTML = '<option value="">お名前を選択してください</option>';
 
-        // 💡 B列在籍ON かつ E列IDなし の職人のみを表示
+        // 💡 B列在籍チェックあり ＆ E列LINE IDなし の職人のみを表示
         const targetNames = result.unlinkedNames || [];
         targetNames.forEach(name => {
           if (name && name !== "undefined") {
@@ -235,6 +235,7 @@
       return;
     }
 
+    // K-SEI最優先ソート
     matchedStaff.sort((a, b) => {
       const aIsKsei = (a.company === "K-SEI") ? 0 : 1;
       const bIsKsei = (b.company === "K-SEI") ? 0 : 1;
