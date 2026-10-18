@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>前金・前々金 登録</title>
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <style>
+    body { background-color: #f4f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 16px; }
+    .card { border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: none; }
+    .form-label { font-weight: bold; font-size: 14px; margin-bottom: 6px; }
+    .form-control, .form-select { padding: 12px; font-size: 15px; border-radius: 8px; }
+    .req { color: #dc3545; font-size: 12px; margin-left: 4px; }
+    .btn-submit { background-color: #28a745; border: none; font-weight: bold; padding: 14px; border-radius: 8px; font-size: 16px; }
+    .btn-submit:hover { background-color: #218838; }
+  </style>
+</head>
+<body>
+<div class="container py-2" style="max-width: 480px;">
+  <div class="card p-4 bg-white">
+    <h4 class="text-center mb-3 text-success font-weight-bold">💴 前金支払登録</h4>
+    <p class="text-muted text-center" style="font-size: 13px;">K-SEIメンバーへの前金・前々金を記録します</p>
+
+    <form id="maekinForm">
+      <!-- 渡した日 -->
+      <div class="mb-3">
+        <label for="payDate" class="form-label">支給日（渡した日）<span class="req">※必須</span></label>
+        <input type="date" class="form-control" id="payDate" required onclick="this.showPicker()">
+      </div>
+
+      <!-- K-SEIメンバー選択 -->
+      <div class="mb-3">
+        <label for="empName" class="form-label">対象者（K-SEIメンバー）<span class="req">※必須</span></label>
+        <select class="form-select" id="empName" required>
+          <option value="">読み込み中...</option>
+        </select>
+      </div>
+
+      <!-- 区分（前金 / 前々金） -->
+      <div class="mb-3">
+        <label class="form-label">支払区分<span class="req">※必須</span></label>
+        <div class="d-flex gap-4 p-2 bg-light rounded border">
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="payType" id="type1" value="前金" checked style="cursor: pointer;">
+            <label class="form-check-label font-weight-bold" for="type1" style="cursor: pointer;">前金</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="radio" name="payType" id="type2" value="前々金" style="cursor: pointer;">
+            <label class="form-check-label font-weight-bold" for="type2" style="cursor: pointer;">前々金</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 金額 -->
+      <div class="mb-3">
+        <label for="amount" class="form-label">前金の金額（円）<span class="req">※必須</span></label>
+        <input type="number" class="form-control" id="amount" placeholder="例: 30000" required>
+      </div>
+
+      <!-- 何日分か（出勤簿連動用の期間選択） -->
+      <div class="mb-3">
+        <label class="form-label">何日分の前金か（対象期間）<span class="req">※必須</span></label>
+        <div class="row g-2">
+          <div class="col-6">
+            <input type="date" class="form-control" id="startDate" required onclick="this.showPicker()" onchange="autoFillPeriod()">
+          </div>
+          <div class="col-6">
+            <input type="date" class="form-control" id="endDate" required onclick="this.showPicker()" onchange="autoFillPeriod()">
+          </div>
+        </div>
+        <small class="text-muted" id="periodPreview" style="font-size: 12px; display: block; margin-top: 4px;">期間: 例 10/1〜10/3</small>
+      </div>
+
+      <!-- 備考 -->
+      <div class="mb-3">
+        <label for="bikou" class="form-label">備考・メモ</label>
+        <input type="text" class="form-control" id="bikou" placeholder="手渡し、銀行振込などあれば入力">
+      </div>
+
+      <div class="d-grid gap-2 mt-4">
+        <button type="button" id="submitBtn" class="btn btn-success btn-submit" onclick="submitMaekin()">前金データを登録する</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // 最新のWebアプリURL
+  const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbwftxItrloU2dw_i6cK3xH7O2PvW_rDyhCigoINgSr81hT0rSBYFveUsa9H6UzZEsFB/exec";
+
+  window.onload = function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('payDate').value = today;
+    document.getElementById('startDate').value = today;
+    document.getElementById('endDate').value = today;
+    autoFillPeriod();
+    loadKseiStaff();
+  };
+
+  // K-SEI所属の職人のみを取得してプルダウンを生成
+  function loadKseiStaff() {
+    fetch(GAS_WEBAPP_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "getKseiStaff" })
+    })
+    .then(res => res.json())
+    .then(result => {
+      const select = document.getElementById('empName');
+      if (!result.success) {
+        select.innerHTML = '<option value="">読み込み失敗</option>';
+        alert("エラー: " + result.message);
+        return;
+      }
+      let html = '<option value="">お名前を選択してください</option>';
+      (result.kseiList || []).forEach(name => {
+        html += `<option value="${name}">${name}</option>`;
+      });
+      select.innerHTML = html;
+    })
+    .catch(err => {
+      document.getElementById('empName').innerHTML = '<option value="">通信エラー</option>';
+    });
+  }
+
+  // 日付選択から「10/1〜10/3」のテキストを自動生成
+  function autoFillPeriod() {
+    const s = document.getElementById('startDate').value;
+    const e = document.getElementById('endDate').value;
+    if (!s || !e) return;
+
+    const sParts = s.split('-');
+    const eParts = e.split('-');
+    const sTxt = parseInt(sParts[1], 10) + "/" + parseInt(sParts[2], 10);
+    const eTxt = parseInt(eParts[1], 10) + "/" + parseInt(eParts[2], 10);
+
+    const txt = (s === e) ? sTxt + " (1日分)" : `${sTxt}〜${eTxt}`;
+    document.getElementById('periodPreview').innerText = "登録表記: " + txt;
+  }
+
+  function submitMaekin() {
+    const form = document.getElementById('maekinForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const s = document.getElementById('startDate').value;
+    const e = document.getElementById('endDate').value;
+    const sParts = s.split('-');
+    const eParts = e.split('-');
+    const periodText = (s === e)
+      ? `${parseInt(sParts[1],10)}/${parseInt(sParts[2],10)}`
+      : `${parseInt(sParts[1],10)}/${parseInt(sParts[2],10)}〜${parseInt(eParts[1],10)}/${parseInt(eParts[2],10)}`;
+
+    const payType = document.querySelector('input[name="payType"]:checked').value;
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerText = "登録中...";
+
+    const formData = {
+      action: "saveMaekinData",
+      payDate: document.getElementById('payDate').value,
+      empName: document.getElementById('empName').value,
+      type: payType,
+      amount: document.getElementById('amount').value,
+      periodText: periodText,
+      startDate: s,
+      endDate: e,
+      bikou: document.getElementById('bikou').value
+    };
+
+    fetch(GAS_WEBAPP_URL, {
+      method: "POST",
+      body: JSON.stringify(formData)
+    })
+    .then(res => res.json())
+    .then(res => {
+      alert(res.message);
+      btn.disabled = false;
+      btn.innerText = "前金データを登録する";
+      if (res.success) {
+        document.getElementById('amount').value = '';
+        document.getElementById('bikou').value = '';
+      }
+    })
+    .catch(err => {
+      alert("送信通信エラー: " + err);
+      btn.disabled = false;
+      btn.innerText = "前金データを登録する";
+    });
+  }
+</script>
+</body>
+</html>
